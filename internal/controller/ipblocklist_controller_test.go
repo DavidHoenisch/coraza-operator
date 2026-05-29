@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	securityv1alpha1 "github.com/DavidHoenisch/coraza-operator/api/v1alpha1"
+	"github.com/DavidHoenisch/coraza-operator/internal/sync"
 )
 
 var _ = Describe("IPBlockList Controller", func() {
@@ -51,7 +53,20 @@ var _ = Describe("IPBlockList Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: securityv1alpha1.IPBlockListSpec{
+						Sources: []securityv1alpha1.SourceSpec{
+							{
+								Type: securityv1alpha1.SourceTypeGit,
+								Git: &securityv1alpha1.GitSourceSpec{
+									URL:  "https://example.com/blocklists.git",
+									Path: "lists/blocked-ips.txt",
+								},
+							},
+						},
+						OutputSpec: securityv1alpha1.OutputSpec{
+							ConfigMapName: "test-blocklist",
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -71,14 +86,33 @@ var _ = Describe("IPBlockList Controller", func() {
 			controllerReconciler := &IPBlockListReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Syncer: sync.StaticSyncer{
+					Result: sync.Result{
+						IPs:       []string{"192.0.2.1", "198.51.100.0/24"},
+						CommitSHA: "test-revision",
+					},
+				},
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			configMap := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      "test-blocklist",
+				Namespace: "default",
+			}, configMap)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(configMap.Data).To(HaveKey("blocked-ips.txt"))
+			Expect(configMap.Data["blocked-ips.txt"]).NotTo(BeEmpty())
+
+			resource := &securityv1alpha1.IPBlockList{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.BlockIPCount).To(BeNumerically(">", 0))
+			Expect(resource.Status.CommitSHA).NotTo(BeEmpty())
 		})
 	})
 })

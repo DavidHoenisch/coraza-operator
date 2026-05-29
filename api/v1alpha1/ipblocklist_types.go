@@ -20,22 +20,52 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// SourceType identifies which fetcher implementation should handle a source.
+// +kubebuilder:validation:Enum=Git;HTTP
+type SourceType string
+
+const (
+	SourceTypeGit  SourceType = "Git"
+	SourceTypeHTTP SourceType = "HTTP"
+)
+
+// GitSourceSpec configures a Git repository blocklist source.
+type GitSourceSpec struct {
+	URL    string `json:"url"`
+	Branch string `json:"branch,omitempty"`
+	Path   string `json:"path"`
+}
+
+// HTTPSourceSpec configures a remote HTTP blocklist source.
+type HTTPSourceSpec struct {
+	URL string `json:"url"`
+}
+
+// SourceSpec declares one blocklist source. Exactly one nested config must
+// match the configured type.
+type SourceSpec struct {
+	Type SourceType      `json:"type"`
+	Git  *GitSourceSpec  `json:"git,omitempty"`
+	HTTP *HTTPSourceSpec `json:"http,omitempty"`
+}
+
+type OutputSpec struct {
+	ConfigMapName string `json:"configMapName"`
+}
 
 // IPBlockListSpec defines the desired state of IPBlockList.
 type IPBlockListSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of IPBlockList. Edit ipblocklist_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Sources      []SourceSpec `json:"sources"`
+	PollInterval string       `json:"pollInterval,omitempty"`
+	OutputSpec   OutputSpec   `json:"output"`
 }
 
 // IPBlockListStatus defines the observed state of IPBlockList.
 type IPBlockListStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	LastSync     metav1.Time `json:"lastSync,omitempty"`
+	Errors       string      `json:"error,omitempty"`
+	CommitSHA    string      `json:"commitSHA,omitempty"`
+	BlockIPCount int64       `json:"blockIpCount,omitempty"`
 }
 
 // +kubebuilder:object:root=true

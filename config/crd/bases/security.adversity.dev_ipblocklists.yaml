@@ -1,0 +1,113 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: ipblocklists.security.adversity.dev
+spec:
+  group: security.adversity.dev
+  names:
+    kind: IPBlockList
+    listKind: IPBlockListList
+    plural: ipblocklists
+    singular: ipblocklist
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: IPBlockList is the Schema for the ipblocklists API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: IPBlockListSpec defines the desired state of IPBlockList.
+            properties:
+              output:
+                properties:
+                  configMapName:
+                    type: string
+                required:
+                - configMapName
+                type: object
+              pollInterval:
+                type: string
+              sources:
+                items:
+                  description: |-
+                    SourceSpec declares one blocklist source. Exactly one nested config must
+                    match the configured type.
+                  properties:
+                    git:
+                      description: GitSourceSpec configures a Git repository blocklist
+                        source.
+                      properties:
+                        branch:
+                          type: string
+                        path:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                      - path
+                      - url
+                      type: object
+                    http:
+                      description: HTTPSourceSpec configures a remote HTTP blocklist
+                        source.
+                      properties:
+                        url:
+                          type: string
+                      required:
+                      - url
+                      type: object
+                    type:
+                      description: SourceType identifies which fetcher implementation
+                        should handle a source.
+                      enum:
+                      - Git
+                      - HTTP
+                      type: string
+                  required:
+                  - type
+                  type: object
+                type: array
+            required:
+            - output
+            - sources
+            type: object
+          status:
+            description: IPBlockListStatus defines the observed state of IPBlockList.
+            properties:
+              blockIpCount:
+                format: int64
+                type: integer
+              commitSHA:
+                type: string
+              error:
+                type: string
+              lastSync:
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -6,4 +6,15 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: ipblocklist-sample
 spec:
-  # TODO(user): Add fields here
+  pollInterval: 5m
+  sources:
+    - type: Git
+      git:
+        url: https://github.com/your-org/blocklists.git
+        branch: main
+        path: lists/blocked-ips.txt
+    - type: HTTP
+      http:
+        url: https://example.com/extra-blocklist.txt
+  output:
+    configMapName: community-blocklist
